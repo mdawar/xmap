@@ -9,9 +9,8 @@ import (
 
 // 1. Test expired key return false and zero value
 // 2. Test update should not update an expired key
-// 3. Test delete removes the key
-// 4. Test keys are automatically removed on expiration (0 TTL not removed)
-// 5. Test Stop clears the map
+// 3. Test keys are automatically removed on expiration (0 TTL not removed)
+// 4. Test Stop clears the map
 
 func TestMapSetThenGet(t *testing.T) {
 	t.Parallel()
@@ -234,5 +233,30 @@ func TestMapUpdateReplacesTheValueOnly(t *testing.T) {
 
 	if m.Len() != 1 {
 		t.Fatalf("want map length %d, got %d", 1, m.Len())
+	}
+}
+
+func TestMapDeleteRemovesTheKey(t *testing.T) {
+	t.Parallel()
+
+	m := xmap.New[string, int]()
+	defer m.Stop()
+
+	keyName := "abc123"
+
+	m.Set(keyName, 5, time.Hour)
+
+	if m.Len() != 1 {
+		t.Fatalf("want map length %d, got %d", 1, m.Len())
+	}
+
+	m.Delete(keyName)
+
+	if _, ok := m.Get(keyName); ok {
+		t.Errorf("key %q was not removed from the map", keyName)
+	}
+
+	if m.Len() != 0 {
+		t.Fatalf("want map length %d, got %d", 0, m.Len())
 	}
 }

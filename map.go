@@ -84,4 +84,6 @@ func (m *Map[K, V]) GetWithExpiration(key K) (V, time.Time, bool) {
 }
 
 // Delete removes a key from the map.
-func (m *Map[K, V]) Delete(key K) {}
+func (m *Map[K, V]) Delete(key K) {
+	delete(m.kv, key)
+}
