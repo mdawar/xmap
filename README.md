@@ -1,6 +1,6 @@
 # xmap
 
-A generic Go map with key expiration.
+A thread-safe, generic Go map with automatic key expiration.
 
 ## Installation
 
