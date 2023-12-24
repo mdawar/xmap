@@ -260,3 +260,36 @@ func TestMapDeleteRemovesTheKey(t *testing.T) {
 		t.Fatalf("want map length %d, got %d", 0, m.Len())
 	}
 }
+func TestMapClearRemovesAllTheKeys(t *testing.T) {
+	t.Parallel()
+
+	m := xmap.New[string, int]()
+	defer m.Stop()
+
+	entries := map[string]int{
+		"a": 1,
+		"b": 2,
+		"c": 3,
+	}
+	wantLen := len(entries)
+
+	for k, v := range entries {
+		m.Set(k, v, time.Hour)
+	}
+
+	if wantLen != m.Len() {
+		t.Fatalf("want map length %d, got %d", wantLen, m.Len())
+	}
+
+	m.Clear()
+
+	for k := range entries {
+		if _, ok := m.Get(k); ok {
+			t.Errorf("key %q was not removed from the map", k)
+		}
+	}
+
+	if m.Len() != 0 {
+		t.Fatalf("want map length %d, got %d", 0, m.Len())
+	}
+}

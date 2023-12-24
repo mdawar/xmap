@@ -87,3 +87,8 @@ func (m *Map[K, V]) GetWithExpiration(key K) (V, time.Time, bool) {
 func (m *Map[K, V]) Delete(key K) {
 	delete(m.kv, key)
 }
+
+// Clear removes all the entries from the map.
+func (m *Map[K, V]) Clear() {
+	clear(m.kv)
+}
