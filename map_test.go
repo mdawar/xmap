@@ -260,6 +260,7 @@ func TestMapDeleteRemovesTheKey(t *testing.T) {
 		t.Fatalf("want map length %d, got %d", 0, m.Len())
 	}
 }
+
 func TestMapClearRemovesAllTheKeys(t *testing.T) {
 	t.Parallel()
 
@@ -291,5 +292,48 @@ func TestMapClearRemovesAllTheKeys(t *testing.T) {
 
 	if m.Len() != 0 {
 		t.Fatalf("want map length %d, got %d", 0, m.Len())
+	}
+}
+
+func TestMapKeyExpirationAndCleanup(t *testing.T) {
+	t.Parallel()
+
+	m := xmap.New[string, int]()
+	defer m.Stop()
+
+	m.Set("a", 1, 10*time.Millisecond)
+	m.Set("b", 2, 0) // Never expires.
+	m.Set("c", 3, 30*time.Millisecond)
+	m.Set("d", 4, 50*time.Millisecond)
+
+	if m.Len() != 4 {
+		t.Fatalf("want map length %d, got %d", 4, m.Len())
+	}
+
+	checkIfExpired := func(key string) {
+		t.Helper()
+		if _, exp, ok := m.GetWithExpiration(key); ok {
+			t.Errorf("key %q with expiration time %v did not expire at %v", key, exp, time.Now())
+		}
+	}
+
+	time.Sleep(15 * time.Millisecond)
+	checkIfExpired("a")
+
+	time.Sleep(20 * time.Millisecond) // 35 Milliseconds passed.
+	checkIfExpired("c")
+
+	time.Sleep(20 * time.Millisecond) // 55 Milliseconds passed.
+	checkIfExpired("d")
+
+	if value, ok := m.Get("b"); !ok {
+		t.Errorf("key %q with 0 TTL must not be removed from the map", "b")
+	} else if value != 2 {
+		t.Errorf("want key %q value %d, got %d", "b", 2, value)
+	}
+
+	// Only the key with 0 TTL should be left in the map.
+	if m.Len() != 1 {
+		t.Errorf("want map length %d, got %d", 1, m.Len())
 	}
 }
