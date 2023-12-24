@@ -2,17 +2,16 @@ package xmap_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/mdawar/xmap"
 )
 
-// 1. Test create and get a value
-// 2. Test key expiration time
-// 4. Test no expiration with 0 TTL
-// 5. Test create replaces an existing value
-// 6. Test update value without changing the expiration time
-// 7. Test delete removes the key
-// 8. Test keys are automatically removed on expiration
+// 1. Test expired key return false and zero value
+// 2. Test update should not update an expired key
+// 3. Test delete removes the key
+// 4. Test keys are automatically removed on expiration (0 TTL not removed)
+// 5. Test Stop clears the map
 
 func TestMapSetThenGet(t *testing.T) {
 	t.Parallel()
@@ -25,6 +24,10 @@ func TestMapSetThenGet(t *testing.T) {
 
 	m.Set(keyName, wantValue, 0)
 
+	if m.Len() != 1 {
+		t.Fatalf("want map length %d, got %d", 1, m.Len())
+	}
+
 	gotValue, ok := m.Get(keyName)
 	if !ok {
 		t.Fatalf("key %q does not exist in the map", keyName)
@@ -32,5 +35,204 @@ func TestMapSetThenGet(t *testing.T) {
 
 	if wantValue != gotValue {
 		t.Errorf("want value %d, got %d", wantValue, gotValue)
+	}
+}
+
+func TestMapSetThenGetWithExpiration(t *testing.T) {
+	t.Parallel()
+
+	m := xmap.New[string, string]()
+	defer m.Stop()
+
+	keyName := "keyName"
+	wantValue := "Testing"
+
+	m.Set(keyName, wantValue, time.Hour)
+
+	if m.Len() != 1 {
+		t.Fatalf("want map length %d, got %d", 1, m.Len())
+	}
+
+	gotValue, gotExpiration, ok := m.GetWithExpiration(keyName)
+	if !ok {
+		t.Fatalf("key %q does not exist in the map", keyName)
+	}
+
+	if wantValue != gotValue {
+		t.Errorf("want value %q, got %q", wantValue, gotValue)
+	}
+
+	if !gotExpiration.After(time.Now()) {
+		t.Errorf("want expiration time in the future, got %v", gotExpiration)
+	}
+}
+
+func TestMapGetNonExistingKeyReturnsFalse(t *testing.T) {
+	t.Parallel()
+
+	m := xmap.New[string, int]()
+	defer m.Stop()
+
+	value, ok := m.Get("doesNotExist")
+	if ok {
+		t.Fatal("want false getting a non existing key, got true")
+	}
+
+	if value != 0 {
+		t.Errorf("want zero value for non existing key %d, got %d", 0, value)
+	}
+}
+
+func TestMapGetWithExpirationNonExistingKeyReturnsFalse(t *testing.T) {
+	t.Parallel()
+
+	m := xmap.New[string, int]()
+	defer m.Stop()
+
+	value, expiration, ok := m.GetWithExpiration("doesNotExist")
+	if ok {
+		t.Fatal("want false getting a non existing key, got true")
+	}
+
+	if value != 0 {
+		t.Errorf("want zero value for non existing key %d, got %d", 0, value)
+	}
+
+	if !expiration.IsZero() {
+		t.Errorf("want zero time value expiration for non existing key, got %v", expiration)
+	}
+}
+
+func TestMapSetWithZeroTTLThenGetWithExpiration(t *testing.T) {
+	t.Parallel()
+
+	m := xmap.New[string, int]()
+	defer m.Stop()
+
+	keyName := "keyName"
+	wantValue := 123456
+
+	m.Set(keyName, wantValue, 0) // Non expiring key (0 TTL).
+
+	if m.Len() != 1 {
+		t.Fatalf("want map length %d, got %d", 1, m.Len())
+	}
+
+	gotValue, gotExpiration, ok := m.GetWithExpiration(keyName)
+	if !ok {
+		t.Fatalf("key %q does not exist in the map", keyName)
+	}
+
+	if wantValue != gotValue {
+		t.Errorf("want value %d, got %d", wantValue, gotValue)
+	}
+
+	if !gotExpiration.IsZero() {
+		t.Errorf("want key with 0 TTL to have zero expiration time, got %v", gotExpiration)
+	}
+}
+
+func TestMapSetReplacesExistingValue(t *testing.T) {
+	t.Parallel()
+
+	m := xmap.New[string, int]()
+	defer m.Stop()
+
+	keyName := "abc:123"
+	wantValue := 123
+
+	m.Set(keyName, wantValue, 0) // Non expiring key (0 TTL).
+
+	if m.Len() != 1 {
+		t.Fatalf("want map length %d, got %d", 1, m.Len())
+	}
+
+	gotValue, gotExpiration, ok := m.GetWithExpiration(keyName)
+	if !ok {
+		t.Fatalf("key %q does not exist in the map", keyName)
+	}
+
+	if wantValue != gotValue {
+		t.Errorf("want value %d, got %d", wantValue, gotValue)
+	}
+
+	// Replace the key with a new value and expiration time.
+	wantNewValue := 456
+	m.Set(keyName, wantNewValue, time.Hour)
+
+	gotNewValue, gotNewExpiration, ok := m.GetWithExpiration(keyName)
+	if !ok {
+		t.Fatalf("key %q does not exist in the map", keyName)
+	}
+
+	if wantNewValue != gotNewValue {
+		t.Errorf("want new value %d, got %d", wantNewValue, gotNewValue)
+	}
+
+	if gotNewExpiration.Equal(gotExpiration) {
+		t.Errorf("want different expiration time, got same expiration time %v", gotExpiration)
+	}
+
+	if m.Len() != 1 {
+		t.Fatalf("want map length %d, got %d", 1, m.Len())
+	}
+}
+
+func TestMapUpdateNonExistingKeyReturnsFalse(t *testing.T) {
+	t.Parallel()
+
+	m := xmap.New[string, int]()
+	defer m.Stop()
+
+	if ok := m.Update("doesNotExist", 100); ok {
+		t.Error("want false updating a non existin key, got true")
+	}
+
+	if m.Len() != 0 {
+		t.Errorf("want map length %d, got %d", 0, m.Len())
+	}
+}
+
+func TestMapUpdateReplacesTheValueOnly(t *testing.T) {
+	t.Parallel()
+
+	m := xmap.New[string, int]()
+	defer m.Stop()
+
+	keyName := "abc"
+	wantValue := 111
+
+	m.Set(keyName, wantValue, time.Minute)
+
+	gotValue, gotExpiration, ok := m.GetWithExpiration(keyName)
+	if !ok {
+		t.Fatalf("key %q does not exist in the map", keyName)
+	}
+
+	if wantValue != gotValue {
+		t.Errorf("want value %d, got %d", wantValue, gotValue)
+	}
+
+	// Update the value and keep the expiration time.
+	wantNewValue := 999
+	if ok := m.Update(keyName, wantNewValue); !ok {
+		t.Fatal("key was not updated, does not exist")
+	}
+
+	gotNewValue, gotNewExpiration, ok := m.GetWithExpiration(keyName)
+	if !ok {
+		t.Fatalf("key %q does not exist in the map", keyName)
+	}
+
+	if wantNewValue != gotNewValue {
+		t.Errorf("want new value %d, got %d", wantNewValue, gotNewValue)
+	}
+
+	if !gotNewExpiration.Equal(gotExpiration) {
+		t.Errorf("want same expiration time after value update %v, got %v", gotExpiration, gotNewExpiration)
+	}
+
+	if m.Len() != 1 {
+		t.Fatalf("want map length %d, got %d", 1, m.Len())
 	}
 }
