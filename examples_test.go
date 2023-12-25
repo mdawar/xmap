@@ -1,17 +1,4 @@
-# xmap
-
-A generic and thread-safe Go map with automatic key expiration.
-
-## Installation
-
-```sh
-go get -u github.com/mdawar/xmap
-```
-
-## Usage
-
-```go
-package main
+package xmap_test
 
 import (
 	"fmt"
@@ -20,7 +7,7 @@ import (
 	"github.com/mdawar/xmap"
 )
 
-func main() {
+func ExampleMap() {
 	// Create a map with the default configuration.
 	m := xmap.New[string, int]()
 	defer m.Stop() // Stop the cleanup goroutine and clear the map.
@@ -62,22 +49,11 @@ func main() {
 	m.Delete("a") // Delete a key from the map.
 	m.Clear()     // Delete all the keys from the map.
 }
-```
 
-## Tests and Benchmarks
-
-Run the tests:
-
-```sh
-make test
-# Or
-go test ./... -cover -race
-```
-
-Run the benchmarks:
-
-```sh
-make benchmark
-# Or
-go test ./... -bench .
-```
+func ExampleNewWithConfig() {
+	m := xmap.NewWithConfig[string, int](xmap.Config{
+		CleanupInterval: 10 * time.Minute, // Change the default cleanup interval.
+		InitialCapacity: 1_000_000,        // Initial capacity hint (Passed to make).
+	})
+	defer m.Stop()
+}
