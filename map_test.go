@@ -7,11 +7,6 @@ import (
 	"github.com/mdawar/xmap"
 )
 
-// 1. Test expired key return false and zero value
-// 2. Test update should not update an expired key
-// 3. Test keys are automatically removed on expiration (0 TTL not removed)
-// 4. Test Stop clears the map
-
 func TestMapSetThenGet(t *testing.T) {
 	t.Parallel()
 
@@ -391,5 +386,124 @@ func TestMapStopClearsTheMap(t *testing.T) {
 
 	if m.Len() != 0 {
 		t.Fatalf("want map length %d, got %d", 0, m.Len())
+	}
+}
+
+func TestMapGetAndUpdateExpiredKey(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	testTime := newMockTime(now)
+
+	m := xmap.NewWithConfig[string, int](xmap.Config{
+		TimeSource: testTime,
+	})
+	defer m.Stop()
+
+	keyName := "abc:123"
+	wantValue := 1122
+	wantExpiration := now.Add(time.Hour)
+
+	m.Set(keyName, wantValue, time.Hour)
+
+	if m.Len() != 1 {
+		t.Fatalf("want map length %d, got %d", 1, m.Len())
+	}
+
+	gotValue, gotExpiration, ok := m.GetWithExpiration(keyName)
+	if !ok {
+		t.Fatalf("key %q does not exist in the map", keyName)
+	}
+
+	if wantValue != gotValue {
+		t.Errorf("want value %d, got %d", wantValue, gotValue)
+	}
+
+	// Verify the exact expiration time.
+	if !wantExpiration.Equal(gotExpiration) {
+		t.Fatalf("want expiration time %v, got %v", wantExpiration, gotExpiration)
+	}
+
+	// Set the current time to the exact expiration time.
+	testTime.Set(wantExpiration)
+
+	if _, ok := m.Get(keyName); !ok {
+		t.Errorf("key %q should not expire at the exact expiration time", keyName)
+	}
+
+	// Advance the time by 1 nanosecond to make the key expire.
+	testTime.Advance(time.Nanosecond)
+
+	// The key should have expired.
+	if gotValue, ok := m.Get(keyName); ok {
+		t.Errorf("key %q did not expire on time", keyName)
+	} else if gotValue != 0 {
+		t.Errorf("expired key %q should return zero value %d, got %d", keyName, 0, gotValue)
+	}
+
+	// We should not be able to update the key after it expires.
+	if ok := m.Update(keyName, 100); ok {
+		t.Errorf("key %q should not be updated on expiration", keyName)
+	}
+}
+
+func TestMapKeyExpirationAndRemoval(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	testTime := newMockTime(now)
+
+	m := xmap.NewWithConfig[string, int](xmap.Config{
+		TimeSource: testTime,
+	})
+	defer m.Stop()
+
+	// Wait until the cleanup goroutine is active.
+	if isActive := retryUntil(20*time.Millisecond, func() bool {
+		return m.CleanupActive()
+	}); !isActive {
+		t.Fatal("cleanup goroutine did not start in time")
+	}
+
+	keyName := "abc"
+	wantValue := 11
+	wantExpiration := now.Add(time.Hour)
+
+	m.Set(keyName, wantValue, time.Hour)
+
+	if m.Len() != 1 {
+		t.Fatalf("want map length %d, got %d", 1, m.Len())
+	}
+
+	if _, gotExpiration, ok := m.GetWithExpiration(keyName); !ok {
+		t.Fatalf("key %q does not exist in the map", keyName)
+	} else if !wantExpiration.Equal(gotExpiration) {
+		t.Fatalf("want expiration time %v, got %v", wantExpiration, gotExpiration)
+	}
+
+	// Set the current time to the exact expiration time.
+	testTime.Set(wantExpiration)
+
+	if _, ok := m.Get(keyName); !ok {
+		t.Errorf("key %q should not expire at the exact expiration time", keyName)
+	}
+
+	// Advance the time by 1 nanosecond to make the key expire.
+	testTime.Advance(time.Nanosecond)
+
+	// The key should have expired.
+	if _, ok := m.Get(keyName); ok {
+		t.Errorf("key %q did not expire on time", keyName)
+	}
+
+	// Send a tick on the created tickers.
+	// The cleanup goroutine must be ready to receive before sending the tick.
+	testTime.Tick()
+
+	// Wait until the key is removed.
+	if keyRemoved := retryUntil(time.Second, func() bool {
+		return m.Len() == 0
+	}); !keyRemoved {
+		t.Errorf("want map length 0, got %d", m.Len())
 	}
 }

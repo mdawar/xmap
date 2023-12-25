@@ -16,7 +16,23 @@ type entry[V any] struct {
 // Config represents the Map configuration.
 type Config struct {
 	// CleanupInterval is the interval at which the expired keys are removed.
+	// Default: 5 minutes.
 	CleanupInterval time.Duration
+	// TimeSource is the time source used by the map for key expiration.
+	// This is only useful for testing.
+	// Default: system time.
+	TimeSource Time
+}
+
+// setDefaults sets the default values for the Map configuration.
+func (c *Config) setDefaults() {
+	if c.CleanupInterval == 0 {
+		c.CleanupInterval = 5 * time.Minute
+	}
+
+	if c.TimeSource == nil {
+		c.TimeSource = &systemTime{}
+	}
 }
 
 // Map is a thread-safe map with automatic key expiration.
@@ -24,23 +40,26 @@ type Map[K comparable, V any] struct {
 	mu       sync.RWMutex    // Mutex to synchronize the map access.
 	kv       map[K]*entry[V] // The underlying map.
 	interval time.Duration   // Cleanup interval.
+	time     Time            // Time source.
 	stop     chan struct{}   // Channel closed on stop.
+	active   atomic.Int32    // Cleanup active flag.
 	stopped  atomic.Int32    // Map stopped flag.
 }
 
 // New creates a new Map instance with the default configuration.
 func New[K comparable, V any]() *Map[K, V] {
-	return NewWithConfig[K, V](Config{
-		CleanupInterval: 5 * time.Minute,
-	})
+	return NewWithConfig[K, V](Config{})
 }
 
 // NewWithConfig creates a new Map instance with the specified configuration.
 func NewWithConfig[K comparable, V any](cfg Config) *Map[K, V] {
+	cfg.setDefaults()
+
 	m := &Map[K, V]{
 		kv:       make(map[K]*entry[V]),
 		stop:     make(chan struct{}),
 		interval: cfg.CleanupInterval,
+		time:     cfg.TimeSource,
 	}
 
 	go m.cleanup()
@@ -90,7 +109,7 @@ func (m *Map[K, V]) Set(key K, value V, ttl time.Duration) {
 	var exp time.Time
 
 	if ttl > 0 {
-		exp = time.Now().Add(ttl)
+		exp = m.time.Now().Add(ttl)
 	}
 
 	m.mu.Lock()
@@ -105,7 +124,7 @@ func (m *Map[K, V]) Update(key K, value V) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if entry, ok := m.kv[key]; ok {
+	if entry, ok := m.kv[key]; ok && !m.expired(entry) {
 		entry.value = value
 		return true
 	}
@@ -160,17 +179,26 @@ func (m *Map[K, V]) Clear() {
 //
 // The cleanup is stopped by calling Stop.
 func (m *Map[K, V]) cleanup() {
-	ticker := time.NewTicker(m.interval)
+	ticker := m.time.NewTicker(m.interval)
 	defer ticker.Stop()
+
+	// Set as active.
+	m.active.Store(1)
+	defer m.active.Store(0)
 
 	for {
 		select {
 		case <-m.stop:
 			return
-		case <-ticker.C:
+		case <-ticker.C():
 			m.removeExpired()
 		}
 	}
+}
+
+// CleanupActive reports whether the cleanup goroutine is active.
+func (m *Map[K, V]) CleanupActive() bool {
+	return m.active.Load() == 1
 }
 
 // removeExpired checks the keys and removes the expired ones.
@@ -197,5 +225,5 @@ func (m *Map[K, V]) removeExpired() {
 
 // expired reports whether an entry has expired.
 func (m *Map[K, V]) expired(entry *entry[V]) bool {
-	return !entry.exp.IsZero() && time.Now().After(entry.exp)
+	return !entry.exp.IsZero() && m.time.Now().After(entry.exp)
 }
