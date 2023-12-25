@@ -56,7 +56,13 @@ func NewWithConfig[K comparable, V any](cfg Config) *Map[K, V] {
 // A stopped map should not be re-used, a new map should be created instead.
 func (m *Map[K, V]) Stop() {
 	if m.stopped.CompareAndSwap(0, 1) {
+		// Stop the cleanup goroutine.
 		close(m.stop)
+
+		// Clear the map to free up resources.
+		m.mu.Lock()
+		m.kv = make(map[K]*entry[V])
+		m.mu.Unlock()
 	}
 }
 

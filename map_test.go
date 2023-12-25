@@ -358,3 +358,38 @@ func TestMapCallingStopMultipleTimesDoesNotPanic(t *testing.T) {
 	// Stop should be safe to be called multiple times.
 	m.Stop()
 }
+
+func TestMapStopClearsTheMap(t *testing.T) {
+	t.Parallel()
+
+	m := xmap.New[string, int]()
+	defer m.Stop()
+
+	entries := map[string]int{
+		"a": 1,
+		"b": 2,
+		"c": 3,
+	}
+	wantLen := len(entries)
+
+	for k, v := range entries {
+		m.Set(k, v, time.Hour)
+	}
+
+	if wantLen != m.Len() {
+		t.Fatalf("want map length %d, got %d", wantLen, m.Len())
+	}
+
+	// Should stop the cleanup goroutine and clear the map.
+	m.Stop()
+
+	for k := range entries {
+		if _, ok := m.Get(k); ok {
+			t.Errorf("key %q was not removed from the map", k)
+		}
+	}
+
+	if m.Len() != 0 {
+		t.Fatalf("want map length %d, got %d", 0, m.Len())
+	}
+}

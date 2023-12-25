@@ -23,7 +23,7 @@ import (
 func main() {
 	// Create a map with the default configuration.
 	m := xmap.New[string, int]()
-	defer m.Stop() // Stop the cleanup goroutine.
+	defer m.Stop() // Stop the cleanup goroutine and clear the map.
 
 	// Create a new entry in the map.
 	m.Set("a", 1, time.Minute) // Key that expires in 1 minute.
