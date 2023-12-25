@@ -1,4 +1,5 @@
 # xmap
+[![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://pkg.go.dev/github.com/mdawar/xmap)
 
 A generic and thread-safe Go map with automatic key expiration.
 
