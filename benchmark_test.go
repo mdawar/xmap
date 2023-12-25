@@ -110,3 +110,63 @@ func BenchmarkMapGetStringValueParallel(b *testing.B) {
 		}
 	})
 }
+
+func BenchmarkMapGetWithExpirationIntValue(b *testing.B) {
+	m := xmap.New[string, int]()
+	defer m.Stop()
+
+	m.Set("keyName", 100, time.Hour)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, _, ok := m.GetWithExpiration("keyName"); !ok {
+			b.Fatal("key does not exist")
+		}
+	}
+	b.StopTimer()
+}
+
+func BenchmarkMapGetWithExpirationIntValueParallel(b *testing.B) {
+	m := xmap.New[string, int]()
+	defer m.Stop()
+
+	m.Set("keyName", 100, time.Hour)
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if _, _, ok := m.GetWithExpiration("keyName"); !ok {
+				b.Fatal("key does not exist")
+			}
+		}
+	})
+}
+
+func BenchmarkMapGetWithExpirationStringValue(b *testing.B) {
+	m := xmap.New[string, string]()
+	defer m.Stop()
+
+	m.Set("keyName", "test value", time.Hour)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, _, ok := m.GetWithExpiration("keyName"); !ok {
+			b.Fatal("key does not exist")
+		}
+	}
+	b.StopTimer()
+}
+
+func BenchmarkMapGetWithExpirationStringValueParallel(b *testing.B) {
+	m := xmap.New[string, string]()
+	defer m.Stop()
+
+	m.Set("keyName", "test value", time.Hour)
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if _, _, ok := m.GetWithExpiration("keyName"); !ok {
+				b.Fatal("key does not exist")
+			}
+		}
+	})
+}
