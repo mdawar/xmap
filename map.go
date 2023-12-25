@@ -3,6 +3,7 @@ package xmap
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -24,6 +25,7 @@ type Map[K comparable, V any] struct {
 	kv       map[K]*entry[V] // The underlying map.
 	interval time.Duration   // Cleanup interval.
 	stop     chan struct{}   // Channel closed on stop.
+	stopped  atomic.Int32    // Map stopped flag.
 }
 
 // New creates a new Map instance with the default configuration.
@@ -49,10 +51,13 @@ func NewWithConfig[K comparable, V any](cfg Config) *Map[K, V] {
 // Stop halts the background cleanup goroutine and clears the map.
 // It should be called when the map is no longer needed.
 //
+// This method is safe to be called multiple times.
+//
 // A stopped map should not be re-used, a new map should be created instead.
 func (m *Map[K, V]) Stop() {
-	// TODO: prevent panic when calling multiple times.
-	close(m.stop)
+	if m.stopped.CompareAndSwap(0, 1) {
+		close(m.stop)
+	}
 }
 
 // Len returns the length of the map.

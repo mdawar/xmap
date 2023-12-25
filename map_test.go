@@ -339,3 +339,11 @@ func TestMapKeyExpirationAndCleanup(t *testing.T) {
 		t.Errorf("want map length %d, got %d", 1, m.Len())
 	}
 }
+
+func TestMapCallingStopMultipleTimesDoesNotPanic(t *testing.T) {
+	t.Parallel()
+
+	m := xmap.New[string, int]()
+	m.Stop()
+	m.Stop()
+}
