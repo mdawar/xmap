@@ -18,6 +18,10 @@ type Config struct {
 	// CleanupInterval is the interval at which the expired keys are removed.
 	// Default: 5 minutes.
 	CleanupInterval time.Duration
+	// InitialCapacity is the initial capacity hint passed to make when creating
+	// the map. It does not bound the size of the map, It will create a map with
+	// an initial space to hold the specified number of elements.
+	InitialCapacity int
 	// TimeSource is the time source used by the map for key expiration.
 	// This is only useful for testing.
 	// Default: system time.
@@ -56,7 +60,7 @@ func NewWithConfig[K comparable, V any](cfg Config) *Map[K, V] {
 	cfg.setDefaults()
 
 	m := &Map[K, V]{
-		kv:       make(map[K]*entry[V]),
+		kv:       make(map[K]*entry[V], cfg.InitialCapacity),
 		stop:     make(chan struct{}),
 		interval: cfg.CleanupInterval,
 		time:     cfg.TimeSource,
