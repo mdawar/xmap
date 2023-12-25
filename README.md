@@ -53,3 +53,21 @@ func main() {
 	m.Clear()     // Delete all the keys from the map.
 }
 ```
+
+## Tests & Benchmarks
+
+Run the tests:
+
+```sh
+make test
+# Or
+go test ./... -cover -race
+```
+
+Run the benchmarks:
+
+```sh
+make benchmark
+# Or
+go test ./... -bench .
+```
