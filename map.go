@@ -1,4 +1,4 @@
-// Package xmap provides a thread-safe, generic map with automatic key expiration.
+// Package xmap provides a generic, thread-safe map with automatic key expiration.
 package xmap
 
 import (
