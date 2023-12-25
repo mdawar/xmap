@@ -12,6 +12,12 @@ type item[V any] struct {
 	exp   time.Time // The expiration time.
 }
 
+// Config represents the Map configuration.
+type Config struct {
+	// CleanupInterval is the interval at which the expired keys are removed.
+	CleanupInterval time.Duration
+}
+
 // Map is a thread-safe map with automatic key expiration.
 type Map[K comparable, V any] struct {
 	mu       sync.RWMutex   // Mutex to synchronize the map access.
@@ -20,12 +26,19 @@ type Map[K comparable, V any] struct {
 	stop     chan struct{}  // Channel closed on stop.
 }
 
-// New creates a new Map instance.
+// New creates a new Map instance with the default configuration.
 func New[K comparable, V any]() *Map[K, V] {
+	return NewWithConfig[K, V](Config{
+		CleanupInterval: 5 * time.Minute,
+	})
+}
+
+// NewWithConfig creates a new Map instance with the specified configuration.
+func NewWithConfig[K comparable, V any](cfg Config) *Map[K, V] {
 	m := &Map[K, V]{
 		kv:       make(map[K]*item[V]),
-		interval: 50 * time.Millisecond, // TODO: config.
 		stop:     make(chan struct{}),
+		interval: cfg.CleanupInterval,
 	}
 
 	go m.cleanup()

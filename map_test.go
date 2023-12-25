@@ -298,7 +298,9 @@ func TestMapClearRemovesAllTheKeys(t *testing.T) {
 func TestMapKeyExpirationAndCleanup(t *testing.T) {
 	t.Parallel()
 
-	m := xmap.New[string, int]()
+	m := xmap.NewWithConfig[string, int](xmap.Config{
+		CleanupInterval: 50 * time.Millisecond,
+	})
 	defer m.Stop()
 
 	m.Set("a", 1, 10*time.Millisecond)
