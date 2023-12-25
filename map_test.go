@@ -504,6 +504,61 @@ func TestMapKeyExpirationAndRemoval(t *testing.T) {
 	if keyRemoved := retryUntil(time.Second, func() bool {
 		return m.Len() == 0
 	}); !keyRemoved {
-		t.Errorf("want map length 0, got %d", m.Len())
+		t.Errorf("want map length %d, got %d", 0, m.Len())
+	}
+}
+
+func TestMapKeyWithZeroTTLNeverExpires(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	testTime := newMockTime(now)
+
+	m := xmap.NewWithConfig[string, int](xmap.Config{
+		TimeSource: testTime,
+	})
+	defer m.Stop()
+
+	// Wait until the cleanup goroutine is active.
+	if isActive := retryUntil(20*time.Millisecond, func() bool {
+		return m.CleanupActive()
+	}); !isActive {
+		t.Fatal("cleanup goroutine did not start in time")
+	}
+
+	keyName := "abc"
+	wantValue := 11
+
+	m.Set(keyName, wantValue, 0) // Never expires (0 TTL).
+	// Add another key that expires so we can test the length of the map at the end.
+	// Needed to be able to wait for the cleanup to finish, otherwise we would have a flaky test.
+	m.Set("expiringKey", 1, time.Hour)
+
+	if m.Len() != 2 {
+		t.Fatalf("want map length %d, got %d", 2, m.Len())
+	}
+
+	if _, gotExpiration, ok := m.GetWithExpiration(keyName); !ok {
+		t.Fatalf("key %q does not exist in the map", keyName)
+	} else if !gotExpiration.IsZero() {
+		t.Errorf("want zero time value expiration for key with 0 TTL, got %v", gotExpiration)
+	}
+
+	// Advance the time 1 year.
+	testTime.Advance(24 * 365 * time.Hour)
+
+	// Send a tick on the created tickers.
+	// The cleanup goroutine must be ready to receive before sending the tick.
+	testTime.Tick()
+
+	// Wait until 1 key is removed.
+	if cleanupDone := retryUntil(time.Second, func() bool {
+		return m.Len() == 1
+	}); !cleanupDone {
+		t.Errorf("want map length %d after cleanup, got %d", 1, m.Len())
+	}
+
+	if _, ok := m.Get(keyName); !ok {
+		t.Errorf("key %q with 0 TTL should not expire", keyName)
 	}
 }
