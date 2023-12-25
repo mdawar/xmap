@@ -7,7 +7,7 @@ import (
 	"github.com/mdawar/xmap"
 )
 
-func BenchmarkMapSetIntValue(b *testing.B) {
+func BenchmarkMapSetInt(b *testing.B) {
 	m := xmap.New[string, int]()
 	defer m.Stop()
 
@@ -18,7 +18,20 @@ func BenchmarkMapSetIntValue(b *testing.B) {
 	b.StopTimer()
 }
 
-func BenchmarkMapSetIntValueParallel(b *testing.B) {
+func BenchmarkMapSetIntInitialCapacity(b *testing.B) {
+	m := xmap.NewWithConfig[string, int](xmap.Config{
+		InitialCapacity: 10_000_000,
+	})
+	defer m.Stop()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		m.Set("keyName", 100, time.Hour)
+	}
+	b.StopTimer()
+}
+
+func BenchmarkMapSetIntParallel(b *testing.B) {
 	m := xmap.New[string, int]()
 	defer m.Stop()
 
@@ -29,7 +42,20 @@ func BenchmarkMapSetIntValueParallel(b *testing.B) {
 	})
 }
 
-func BenchmarkMapSetStringValue(b *testing.B) {
+func BenchmarkMapSetIntParallelInitialCapacity(b *testing.B) {
+	m := xmap.NewWithConfig[string, int](xmap.Config{
+		InitialCapacity: 10_000_000,
+	})
+	defer m.Stop()
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			m.Set("keyName", 100, time.Hour)
+		}
+	})
+}
+
+func BenchmarkMapSetString(b *testing.B) {
 	m := xmap.New[string, string]()
 	defer m.Stop()
 
@@ -40,7 +66,20 @@ func BenchmarkMapSetStringValue(b *testing.B) {
 	b.StopTimer()
 }
 
-func BenchmarkMapSetStringValueParallel(b *testing.B) {
+func BenchmarkMapSetStringInitialCapacity(b *testing.B) {
+	m := xmap.NewWithConfig[string, string](xmap.Config{
+		InitialCapacity: 10_000_000,
+	})
+	defer m.Stop()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		m.Set("keyName", "test value", time.Hour)
+	}
+	b.StopTimer()
+}
+
+func BenchmarkMapSetStringParallel(b *testing.B) {
 	m := xmap.New[string, string]()
 	defer m.Stop()
 
@@ -51,7 +90,20 @@ func BenchmarkMapSetStringValueParallel(b *testing.B) {
 	})
 }
 
-func BenchmarkMapGetIntValue(b *testing.B) {
+func BenchmarkMapSetStringParallelInitialCapacity(b *testing.B) {
+	m := xmap.NewWithConfig[string, string](xmap.Config{
+		InitialCapacity: 10_000_000,
+	})
+	defer m.Stop()
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			m.Set("keyName", "test value", time.Hour)
+		}
+	})
+}
+
+func BenchmarkMapGetInt(b *testing.B) {
 	m := xmap.New[string, int]()
 	defer m.Stop()
 
@@ -66,7 +118,7 @@ func BenchmarkMapGetIntValue(b *testing.B) {
 	b.StopTimer()
 }
 
-func BenchmarkMapGetIntValueParallel(b *testing.B) {
+func BenchmarkMapGetIntParallel(b *testing.B) {
 	m := xmap.New[string, int]()
 	defer m.Stop()
 
@@ -81,7 +133,7 @@ func BenchmarkMapGetIntValueParallel(b *testing.B) {
 	})
 }
 
-func BenchmarkMapGetStringValue(b *testing.B) {
+func BenchmarkMapGetString(b *testing.B) {
 	m := xmap.New[string, string]()
 	defer m.Stop()
 
@@ -96,7 +148,7 @@ func BenchmarkMapGetStringValue(b *testing.B) {
 	b.StopTimer()
 }
 
-func BenchmarkMapGetStringValueParallel(b *testing.B) {
+func BenchmarkMapGetStringParallel(b *testing.B) {
 	m := xmap.New[string, string]()
 	defer m.Stop()
 
@@ -111,7 +163,7 @@ func BenchmarkMapGetStringValueParallel(b *testing.B) {
 	})
 }
 
-func BenchmarkMapGetWithExpirationIntValue(b *testing.B) {
+func BenchmarkMapGetWithExpirationInt(b *testing.B) {
 	m := xmap.New[string, int]()
 	defer m.Stop()
 
@@ -126,7 +178,7 @@ func BenchmarkMapGetWithExpirationIntValue(b *testing.B) {
 	b.StopTimer()
 }
 
-func BenchmarkMapGetWithExpirationIntValueParallel(b *testing.B) {
+func BenchmarkMapGetWithExpirationIntParallel(b *testing.B) {
 	m := xmap.New[string, int]()
 	defer m.Stop()
 
@@ -141,7 +193,7 @@ func BenchmarkMapGetWithExpirationIntValueParallel(b *testing.B) {
 	})
 }
 
-func BenchmarkMapGetWithExpirationStringValue(b *testing.B) {
+func BenchmarkMapGetWithExpirationString(b *testing.B) {
 	m := xmap.New[string, string]()
 	defer m.Stop()
 
@@ -156,7 +208,7 @@ func BenchmarkMapGetWithExpirationStringValue(b *testing.B) {
 	b.StopTimer()
 }
 
-func BenchmarkMapGetWithExpirationStringValueParallel(b *testing.B) {
+func BenchmarkMapGetWithExpirationStringParallel(b *testing.B) {
 	m := xmap.New[string, string]()
 	defer m.Stop()
 
@@ -171,7 +223,7 @@ func BenchmarkMapGetWithExpirationStringValueParallel(b *testing.B) {
 	})
 }
 
-func BenchmarkMapUpdateIntValue(b *testing.B) {
+func BenchmarkMapUpdateInt(b *testing.B) {
 	m := xmap.New[string, int]()
 	defer m.Stop()
 
@@ -186,7 +238,7 @@ func BenchmarkMapUpdateIntValue(b *testing.B) {
 	b.StopTimer()
 }
 
-func BenchmarkMapUpdateIntValueParallel(b *testing.B) {
+func BenchmarkMapUpdateIntParallel(b *testing.B) {
 	m := xmap.New[string, int]()
 	defer m.Stop()
 
@@ -201,7 +253,7 @@ func BenchmarkMapUpdateIntValueParallel(b *testing.B) {
 	})
 }
 
-func BenchmarkMapUpdateStringValue(b *testing.B) {
+func BenchmarkMapUpdateString(b *testing.B) {
 	m := xmap.New[string, string]()
 	defer m.Stop()
 
@@ -216,7 +268,7 @@ func BenchmarkMapUpdateStringValue(b *testing.B) {
 	b.StopTimer()
 }
 
-func BenchmarkMapUpdateStringValueParallel(b *testing.B) {
+func BenchmarkMapUpdateStringParallel(b *testing.B) {
 	m := xmap.New[string, string]()
 	defer m.Stop()
 
