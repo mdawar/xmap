@@ -344,6 +344,17 @@ func TestMapCallingStopMultipleTimesDoesNotPanic(t *testing.T) {
 	t.Parallel()
 
 	m := xmap.New[string, int]()
+
+	if m.Stopped() {
+		t.Fatal("map is stopped before calling Stop")
+	}
+
 	m.Stop()
+
+	if !m.Stopped() {
+		t.Fatal("map was not stopped after calling Stop")
+	}
+
+	// Stop should be safe to be called multiple times.
 	m.Stop()
 }

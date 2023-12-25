@@ -60,6 +60,13 @@ func (m *Map[K, V]) Stop() {
 	}
 }
 
+// Stopped reports whether the Map is stopped.
+//
+// Expired keys are not removed automatically in a stopped map.
+func (m *Map[K, V]) Stopped() bool {
+	return m.stopped.Load() == 1
+}
+
 // Len returns the length of the map.
 //
 // The length of the map is the total number of keys, including the
