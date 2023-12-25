@@ -562,3 +562,54 @@ func TestMapKeyWithZeroTTLNeverExpires(t *testing.T) {
 		t.Errorf("key %q with 0 TTL should not expire", keyName)
 	}
 }
+
+func TestMapManualExpiredKeysRemoval(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	testTime := newMockTime(now)
+
+	m := xmap.NewWithConfig[string, int](xmap.Config{
+		TimeSource: testTime,
+	})
+	// Since we're using a mock time source, the cleanup goroutine
+	// won't receive ticks unless we send them.
+	defer m.Stop()
+
+	if removed := m.RemoveExpired(); removed != 0 {
+		t.Fatalf("want %d key removals for empty map, got %d", 0, removed)
+	}
+
+	entries := map[string]int{
+		"a": 1,
+		"b": 2,
+		"c": 3,
+	}
+	wantLen := len(entries)
+
+	for k, v := range entries {
+		m.Set(k, v, time.Hour)
+	}
+
+	if wantLen != m.Len() {
+		t.Fatalf("want map length %d, got %d", wantLen, m.Len())
+	}
+
+	// Advance to the exact expiration time.
+	testTime.Advance(time.Hour)
+
+	if removed := m.RemoveExpired(); removed != 0 {
+		t.Fatalf("want %d key removals at the exact expiration time, got %d", 0, removed)
+	}
+
+	// Advance 1 more nanosecond to make the keys expire.
+	testTime.Advance(time.Nanosecond)
+
+	if removed := m.RemoveExpired(); removed != wantLen {
+		t.Fatalf("want %d key removals on expiration, got %d", wantLen, removed)
+	}
+
+	if m.Len() != 0 {
+		t.Fatalf("want map length %d, got %d", 0, m.Len())
+	}
+}

@@ -94,8 +94,11 @@ func (m *Map[K, V]) Stopped() bool {
 
 // Len returns the length of the map.
 //
-// The length of the map is the total number of keys, including the
-// expired keys that have not been removed yet.
+// The length of the map is the total number of keys, including the expired
+// keys that have not been removed yet.
+//
+// To get the length excluding the number of expired keys, call RemoveExpired
+// before calling this method.
 func (m *Map[K, V]) Len() int {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -191,7 +194,7 @@ func (m *Map[K, V]) cleanup() {
 		case <-m.stop:
 			return
 		case <-ticker.C():
-			m.removeExpired()
+			m.RemoveExpired()
 		}
 	}
 }
@@ -201,8 +204,10 @@ func (m *Map[K, V]) CleanupActive() bool {
 	return m.active.Load() == 1
 }
 
-// removeExpired checks the keys and removes the expired ones.
-func (m *Map[K, V]) removeExpired() {
+// RemoveExpired checks the map keys and removes the expired ones.
+//
+// It returns the number of keys that have expired.
+func (m *Map[K, V]) RemoveExpired() int {
 	// Expired keys.
 	var expired []K
 
@@ -221,6 +226,8 @@ func (m *Map[K, V]) removeExpired() {
 		delete(m.kv, key)
 	}
 	m.mu.Unlock()
+
+	return len(expired)
 }
 
 // expired reports whether an entry has expired.
