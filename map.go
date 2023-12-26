@@ -2,6 +2,7 @@
 package xmap
 
 import (
+	"context"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -166,6 +167,46 @@ func (m *Map[K, V]) GetWithExpiration(key K) (V, time.Time, bool) {
 
 	var zero V
 	return zero, time.Time{}, false
+}
+
+// Entry represents a key/value pair in the Map.
+type Entry[K comparable, V any] struct {
+	Key   K
+	Value V
+}
+
+// Entries returns a read-only channel of Entry elements representing the
+// current entries in the Map.
+//
+// This channel can be used in a for range loop to iterate over the current
+// map entries. Only the elements that have not expired are sent on this
+// channel. The channel is closed after all the entries have been sent.
+//
+// Like the map type, the iteration order is not guaranteed.
+//
+// A read lock is held during the iteration, so it's important to consume
+// all of the elements sent on the channel or cancel the passed context
+// if a full iteration is not needed.
+func (m *Map[K, V]) Entries(ctx context.Context) <-chan Entry[K, V] {
+	ch := make(chan Entry[K, V])
+
+	go func() {
+		m.mu.RLock()
+		defer m.mu.RUnlock()
+		defer close(ch)
+
+		for key, entry := range m.kv {
+			if !m.expired(entry) {
+				select {
+				case <-ctx.Done():
+					return
+				case ch <- Entry[K, V]{key, entry.value}:
+				}
+			}
+		}
+	}()
+
+	return ch
 }
 
 // Delete removes a key from the map.

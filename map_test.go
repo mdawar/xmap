@@ -1,6 +1,9 @@
 package xmap_test
 
 import (
+	"context"
+	"maps"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -611,5 +614,108 @@ func TestMapManualExpiredKeysRemoval(t *testing.T) {
 
 	if m.Len() != 0 {
 		t.Fatalf("want map length %d, got %d", 0, m.Len())
+	}
+}
+
+func TestMapIterateOverMapEntries(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	testTime := newMockTime(now)
+
+	m := xmap.NewWithConfig[string, int](xmap.Config{
+		TimeSource: testTime,
+	})
+	defer m.Stop()
+
+	entries := []struct {
+		key   string
+		value int
+		ttl   time.Duration
+	}{
+		{"a", 1, 10 * time.Second},
+		{"b", 2, time.Minute},
+		{"c", 3, time.Hour},
+		{"d", 4, 0}, // Never expires.
+	}
+
+	for _, entry := range entries {
+		m.Set(entry.key, entry.value, entry.ttl)
+	}
+
+	// Loop over the entries and verify the returned elements.
+	checkEntriesRange := func(wantEntries map[string]int) {
+		t.Helper()
+
+		gotEntries := make(map[string]int)
+		for entry := range m.Entries(context.Background()) {
+			gotEntries[entry.Key] = entry.Value
+		}
+
+		if !maps.Equal(wantEntries, gotEntries) {
+			t.Errorf("want %v, got %v", wantEntries, gotEntries)
+		}
+	}
+
+	// No keys have expired yet.
+	checkEntriesRange(map[string]int{"a": 1, "b": 2, "c": 3, "d": 4})
+
+	// Advance the time to make "a" expire.
+	testTime.Advance(15 * time.Second)
+	checkEntriesRange(map[string]int{"b": 2, "c": 3, "d": 4})
+
+	// Advance the time to make "b" expire.
+	testTime.Advance(time.Minute) // 1 minute and 15 seconds have passed.
+	checkEntriesRange(map[string]int{"c": 3, "d": 4})
+
+	// Advance the time to make "c" expire.
+	testTime.Advance(time.Hour) // 1 hour, 1 minute and 15 seconds have passed.
+	checkEntriesRange(map[string]int{"d": 4})
+
+	// Advance the time 1 year.
+	testTime.Advance(24 * 365 * time.Hour)
+	checkEntriesRange(map[string]int{"d": 4})
+}
+
+func TestMapPartialIterationOverEntries(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	testTime := newMockTime(now)
+
+	m := xmap.NewWithConfig[string, int](xmap.Config{
+		TimeSource: testTime,
+	})
+	defer m.Stop()
+
+	entries := []struct {
+		key   string
+		value int
+		ttl   time.Duration
+	}{
+		{"a", 1, 10 * time.Second},
+		{"b", 2, time.Minute},
+		{"c", 3, time.Hour},
+		{"d", 4, 0}, // Never expires.
+	}
+
+	for _, entry := range entries {
+		m.Set(entry.key, entry.value, entry.ttl)
+	}
+
+	// Number of entries consumed.
+	var gotEntries atomic.Int32
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	for range m.Entries(ctx) {
+		gotEntries.Add(1)
+		cancel() // Must cancel the context to release the lock.
+		break    // Stop after consuming 1 entry.
+	}
+
+	if gotEntries.Load() != 1 {
+		t.Errorf("want to consume 1 entry, got %d", gotEntries.Load())
 	}
 }

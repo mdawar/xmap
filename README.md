@@ -15,6 +15,7 @@ go get -u github.com/mdawar/xmap
 package main
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -59,6 +60,11 @@ func main() {
 	// Expired keys are automatically removed at regular intervals.
 	// Additionally, the removal of expired keys can be manually triggered.
 	removed := m.RemoveExpired() // Returns the number of removed keys.
+
+	// Iterate over the map entries.
+	for entry := range m.Entries(context.TODO()) {
+		fmt.Println("Key:", entry.Key, "-", "Value:", entry.Value)
+	}
 }
 ```
 
