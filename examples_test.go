@@ -74,7 +74,7 @@ func ExampleMap_Entries() {
 	}
 }
 
-func ExampleMap_Entries_partialIteration() {
+func ExampleMap_Entries_partial_iteration() {
 	m := xmap.New[string, int]()
 	defer m.Stop()
 
