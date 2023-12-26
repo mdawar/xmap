@@ -48,6 +48,12 @@ func ExampleMap() {
 
 	m.Delete("a") // Delete a key from the map.
 	m.Clear()     // Delete all the keys from the map.
+
+	// Expired keys are automatically removed at regular intervals.
+	// Additionally, the removal of expired keys can be manually triggered.
+	removed := m.RemoveExpired()
+
+	fmt.Println("Total keys removed:", removed)
 }
 
 func ExampleNewWithConfig() {

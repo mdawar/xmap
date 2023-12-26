@@ -1,5 +1,5 @@
 # xmap
-[![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://pkg.go.dev/github.com/mdawar/xmap)
+[![Go Reference](https://pkg.go.dev/badge/github.com/mdawar/xmap.svg)](https://pkg.go.dev/github.com/mdawar/xmap)
 
 A generic and thread-safe Go map with automatic key expiration.
 
@@ -34,34 +34,31 @@ func main() {
 	m.Set("a", 3, time.Hour) // Replace key (New value and expiration time).
 
 	// Update the value without changing the expiration time.
-	if ok := m.Update("b", 4); ok {
-		fmt.Println("Key updated successfully")
-	} else {
-		fmt.Println("Key does not exist")
-	}
+	// Reports whether the key was updated (Key exists).
+	ok := m.Update("b", 4)
 
 	// Get the value if the key exists and has not expired.
-	if value, ok := m.Get("a"); ok {
-		fmt.Println("Value:", value)
-	} else {
-		fmt.Println("Key does not exist")
-	}
+	// The second return value reports whether the key exists.
+	value, ok := m.Get("a")
 
 	// Get the value with the expiration time.
-	if value, expiration, ok := m.GetWithExpiration("a"); ok {
-		// If the key never expires, it will have a zero expiration time value.
-		fmt.Println("Key expires:", !expiration.IsZero())
-		fmt.Println("Value:", value, "-", "Expiration:", expiration)
-	} else {
-		fmt.Println("Key does not exist")
-	}
+	// The third return value reports whether the key exists.
+	value, expiration, ok := m.GetWithExpiration("a")
+	// If the key never expires, it will have a zero expiration time value.
+	neverExpires := expiration.IsZero()
 
-	total := m.Len() // Length of the map.
+	// Length of the map.
+	total := m.Len()
 
-	fmt.Println("Total entries in the map:", total)
+	// Delete a key from the map.
+	m.Delete("a")
 
-	m.Delete("a") // Delete a key from the map.
-	m.Clear()     // Delete all the keys from the map.
+	// Delete all the keys from the map.
+	m.Clear()
+
+	// Expired keys are automatically removed at regular intervals.
+	// Additionally, the removal of expired keys can be manually triggered.
+	removed := m.RemoveExpired() // Returns the number of removed keys.
 }
 ```
 
