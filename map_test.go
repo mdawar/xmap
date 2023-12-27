@@ -3,7 +3,6 @@ package xmap_test
 import (
 	"context"
 	"maps"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -710,18 +709,33 @@ func TestMapPartialIterationOverEntries(t *testing.T) {
 	}
 
 	// Number of entries consumed.
-	var gotEntries atomic.Int32
+	var gotCount int
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	for range m.Entries(ctx) {
-		gotEntries.Add(1)
+		gotCount++
 		cancel() // Must cancel the context to release the lock.
 		break    // Stop after consuming 1 entry.
 	}
 
-	if gotEntries.Load() != 1 {
-		t.Errorf("want to consume 1 entry, got %d", gotEntries.Load())
+	// Make sure we consume at least 1 entry.
+	if gotCount != 1 {
+		t.Errorf("want to consume 1 entry, got %d", gotCount)
+	}
+
+	// Channel used to wait for stopping the map.
+	stopped := make(chan struct{})
+	go func() {
+		m.Stop() // Might block waiting for the lock if not released by Entries.
+		close(stopped)
+	}()
+
+	// Wait for Stop() to return.
+	select {
+	case <-stopped:
+	case <-time.After(time.Second):
+		t.Error("timed out waiting for Stop() to return")
 	}
 }
