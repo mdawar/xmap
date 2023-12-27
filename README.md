@@ -1,5 +1,7 @@
 # xmap
+
 [![Go Reference](https://pkg.go.dev/badge/github.com/mdawar/xmap.svg)](https://pkg.go.dev/github.com/mdawar/xmap)
+[![Go Report Card](https://goreportcard.com/badge/github.com/mdawar/xmap)](https://goreportcard.com/report/github.com/mdawar/xmap)
 
 A generic and thread-safe Go map with automatic key expiration.
 
@@ -68,20 +70,55 @@ func main() {
 }
 ```
 
-## Tests and Benchmarks
+## Configuration
 
-Run the tests:
+| Name              | Type            | Description                                                      |
+| ----------------- | --------------- | ---------------------------------------------------------------- |
+| `CleanupInterval` | `time.Duration` | Interval at which expired keys are removed (Default: 5 minutes). |
+| `InitialCapacity` | `int`           | Initial map capacity hint (Passed to `make()`).                  |
+| `TimeSource`      | `xmap.Time`     | Custom time source (Useful for testing).                         |
+
+Example:
+
+```go
+package xmap
+
+import (
+	"time"
+
+	"github.com/mdawar/xmap"
+)
+
+func main() {
+	m := xmap.NewWithConfig[string, int](xmap.Config{
+		CleanupInterval: 10 * time.Minute,
+		InitialCapacity: 10_000_000,
+		TimeSource:      mockTime,
+	})
+	defer m.Stop()
+}
+```
+
+## Tests
 
 ```sh
 make test
-# Or
+```
+
+Or:
+
+```sh
 go test ./... -cover -race
 ```
 
-Run the benchmarks:
+## Benchmarks
 
 ```sh
 make benchmark
-# Or
+```
+
+Or:
+
+```sh
 go test ./... -bench .
 ```
