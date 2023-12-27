@@ -2,6 +2,7 @@
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/mdawar/xmap.svg)](https://pkg.go.dev/github.com/mdawar/xmap)
 [![Go Report Card](https://goreportcard.com/badge/github.com/mdawar/xmap)](https://goreportcard.com/report/github.com/mdawar/xmap)
+[![Go Tests](https://github.com/mdawar/xmap/actions/workflows/go.yml/badge.svg?branch=main&event=push)](https://github.com/mdawar/xmap/actions)
 
 A generic and thread-safe Go map with automatic key expiration.
 
