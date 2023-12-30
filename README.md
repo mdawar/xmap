@@ -109,7 +109,7 @@ make test
 Or:
 
 ```sh
-go test ./... -cover -race
+go test -cover -race
 ```
 
 ## Benchmarks
@@ -121,5 +121,5 @@ make benchmark
 Or:
 
 ```sh
-go test ./... -bench .
+go test -bench .
 ```
