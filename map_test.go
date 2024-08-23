@@ -1,7 +1,6 @@
 package xmap_test
 
 import (
-	"context"
 	"maps"
 	"testing"
 	"time"
@@ -653,8 +652,8 @@ func TestMapIterateOverMapEntries(t *testing.T) {
 		t.Helper()
 
 		gotEntries := make(map[string]int)
-		for entry := range m.Entries(context.Background()) {
-			gotEntries[entry.Key] = entry.Value
+		for k, v := range m.Entries() {
+			gotEntries[k] = v
 		}
 
 		if !maps.Equal(wantEntries, gotEntries) {
@@ -708,21 +707,17 @@ func TestMapPartialIterationOverEntries(t *testing.T) {
 		m.Set(entry.key, entry.value, entry.ttl)
 	}
 
-	// Number of entries consumed.
-	var gotCount int
+	// Consumed entries.
+	consumed := make(map[string]int)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	for range m.Entries(ctx) {
-		gotCount++
-		cancel() // Must cancel the context to release the lock.
-		break    // Stop after consuming 1 entry.
+	for k, v := range m.Entries() {
+		consumed[k] = v
+		break // Stop after consuming 1 entry.
 	}
 
 	// Make sure we consume at least 1 entry.
-	if gotCount != 1 {
-		t.Errorf("want to consume 1 entry, got %d", gotCount)
+	if len(consumed) != 1 {
+		t.Errorf("want to consume 1 entry, got %d", len(consumed))
 	}
 
 	// Channel used to wait for stopping the map.

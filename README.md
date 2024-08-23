@@ -65,8 +65,8 @@ func main() {
 	removed := m.RemoveExpired() // Returns the number of removed keys.
 
 	// Iterate over the map entries.
-	for entry := range m.Entries(context.TODO()) {
-		fmt.Println("Key:", entry.Key, "-", "Value:", entry.Value)
+	for key, value := range m.Entries() {
+		fmt.Println("Key:", key, "-", "Value:", value)
 	}
 }
 ```

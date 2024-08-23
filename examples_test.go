@@ -1,7 +1,6 @@
 package xmap_test
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -69,23 +68,7 @@ func ExampleMap_Entries() {
 	m := xmap.New[string, int]()
 	defer m.Stop()
 
-	for entry := range m.Entries(context.TODO()) {
-		fmt.Println("Key:", entry.Key, "-", "Value:", entry.Value)
-	}
-}
-
-func ExampleMap_Entries_partial_iteration() {
-	m := xmap.New[string, int]()
-	defer m.Stop()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	for entry := range m.Entries(ctx) {
-		fmt.Println("Key:", entry.Key, "-", "Value:", entry.Value)
-		// With a partial iteration, the context must be canceled
-		// to prevent a deadlock (A read lock is held during the iteration).
-		cancel()
-		break
+	for k, v := range m.Entries() {
+		fmt.Println("Key:", k, "-", "Value:", v)
 	}
 }
