@@ -64,11 +64,11 @@ func ExampleNewWithConfig() {
 	defer m.Stop()
 }
 
-func ExampleMap_Entries() {
+func ExampleMap_All() {
 	m := xmap.New[string, int]()
 	defer m.Stop()
 
-	for k, v := range m.Entries() {
+	for k, v := range m.All() {
 		fmt.Println("Key:", k, "-", "Value:", v)
 	}
 }

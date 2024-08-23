@@ -169,12 +169,12 @@ func (m *Map[K, V]) GetWithExpiration(key K) (V, time.Time, bool) {
 	return zero, time.Time{}, false
 }
 
-// Entries returns an iterator over key-value pairs of the Map entries.
+// All returns an iterator over key-value pairs from the Map.
 //
 // Only the entries that have not expired are produced during the iteration.
 //
 // Similar to the map type, the iteration order is not guaranteed.
-func (m *Map[K, V]) Entries() iter.Seq2[K, V] {
+func (m *Map[K, V]) All() iter.Seq2[K, V] {
 	return func(yield func(K, V) bool) {
 		m.mu.RLock()
 		defer m.mu.RUnlock()

@@ -65,7 +65,7 @@ func main() {
 	removed := m.RemoveExpired() // Returns the number of removed keys.
 
 	// Iterate over the map entries.
-	for key, value := range m.Entries() {
+	for key, value := range m.All() {
 		fmt.Println("Key:", key, "-", "Value:", value)
 	}
 }

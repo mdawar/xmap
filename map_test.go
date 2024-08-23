@@ -621,7 +621,7 @@ func TestMapManualExpiredKeysRemoval(t *testing.T) {
 	}
 }
 
-func TestMapIterateOverMapEntries(t *testing.T) {
+func TestMapAllIterator(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
@@ -648,16 +648,16 @@ func TestMapIterateOverMapEntries(t *testing.T) {
 	}
 
 	// Loop over the entries and verify the returned elements.
-	checkEntriesRange := func(wantEntries map[string]int) {
+	checkEntriesRange := func(want map[string]int) {
 		t.Helper()
 
-		gotEntries := make(map[string]int)
-		for k, v := range m.Entries() {
-			gotEntries[k] = v
+		got := make(map[string]int)
+		for k, v := range m.All() {
+			got[k] = v
 		}
 
-		if !maps.Equal(wantEntries, gotEntries) {
-			t.Errorf("want %v, got %v", wantEntries, gotEntries)
+		if !maps.Equal(want, got) {
+			t.Errorf("want %v, got %v", want, got)
 		}
 	}
 
@@ -681,7 +681,7 @@ func TestMapIterateOverMapEntries(t *testing.T) {
 	checkEntriesRange(map[string]int{"d": 4})
 }
 
-func TestMapPartialIterationOverEntries(t *testing.T) {
+func TestMapAllPartialIteration(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
@@ -710,7 +710,7 @@ func TestMapPartialIterationOverEntries(t *testing.T) {
 	// Consumed entries.
 	consumed := make(map[string]int)
 
-	for k, v := range m.Entries() {
+	for k, v := range m.All() {
 		consumed[k] = v
 		break // Stop after consuming 1 entry.
 	}
