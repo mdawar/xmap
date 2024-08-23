@@ -2,6 +2,7 @@ package xmap_test
 
 import (
 	"maps"
+	"sync"
 	"testing"
 	"time"
 
@@ -648,7 +649,7 @@ func TestMapAllIterator(t *testing.T) {
 	}
 
 	// Loop over the entries and verify the returned elements.
-	checkEntriesRange := func(want map[string]int) {
+	checkIterationResult := func(want map[string]int) {
 		t.Helper()
 
 		got := make(map[string]int)
@@ -662,23 +663,23 @@ func TestMapAllIterator(t *testing.T) {
 	}
 
 	// No keys have expired yet.
-	checkEntriesRange(map[string]int{"a": 1, "b": 2, "c": 3, "d": 4})
+	checkIterationResult(map[string]int{"a": 1, "b": 2, "c": 3, "d": 4})
 
 	// Advance the time to make "a" expire.
 	testTime.Advance(15 * time.Second)
-	checkEntriesRange(map[string]int{"b": 2, "c": 3, "d": 4})
+	checkIterationResult(map[string]int{"b": 2, "c": 3, "d": 4})
 
 	// Advance the time to make "b" expire.
 	testTime.Advance(time.Minute) // 1 minute and 15 seconds have passed.
-	checkEntriesRange(map[string]int{"c": 3, "d": 4})
+	checkIterationResult(map[string]int{"c": 3, "d": 4})
 
 	// Advance the time to make "c" expire.
 	testTime.Advance(time.Hour) // 1 hour, 1 minute and 15 seconds have passed.
-	checkEntriesRange(map[string]int{"d": 4})
+	checkIterationResult(map[string]int{"d": 4})
 
 	// Advance the time 1 year.
 	testTime.Advance(24 * 365 * time.Hour)
-	checkEntriesRange(map[string]int{"d": 4})
+	checkIterationResult(map[string]int{"d": 4})
 }
 
 func TestMapAllPartialIteration(t *testing.T) {
@@ -723,7 +724,7 @@ func TestMapAllPartialIteration(t *testing.T) {
 	// Channel used to wait for stopping the map.
 	stopped := make(chan struct{})
 	go func() {
-		m.Stop() // Might block waiting for the lock if not released by Entries.
+		m.Stop() // Might block waiting for the lock if not released by All.
 		close(stopped)
 	}()
 
@@ -732,5 +733,48 @@ func TestMapAllPartialIteration(t *testing.T) {
 	case <-stopped:
 	case <-time.After(time.Second):
 		t.Error("timed out waiting for Stop() to return")
+	}
+}
+
+func TestMapAllConcurrentIterations(t *testing.T) {
+	t.Parallel()
+
+	m := xmap.New[string, int]()
+	defer m.Stop()
+
+	want := map[string]int{"a": 1, "b": 2, "c": 3, "d": 4}
+
+	for k, v := range want {
+		m.Set(k, v, time.Hour)
+	}
+
+	iterations := 4
+
+	// No need to synchronize.
+	// Goroutines will write to a distinct index.
+	results := make([]map[string]int, iterations)
+
+	var wg sync.WaitGroup
+
+	for i := range iterations {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			// Initialize the map for this goroutine.
+			results[i] = make(map[string]int)
+
+			for k, v := range m.All() {
+				results[i][k] = v
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	for _, got := range results {
+		if !maps.Equal(want, got) {
+			t.Errorf("want %v, got %v", want, got)
+		}
 	}
 }
